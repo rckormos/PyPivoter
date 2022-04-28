@@ -1,0 +1,20 @@
+CYTHONIZE=1 pip install .
+Processing /home/kormos/thesis_project/PyPivoter
+Requirement already satisfied: numpy>1.5.0 in /home/kormos/anaconda3/lib/python3.8/site-packages (from pypivoter==0.0.1) (1.19.5)
+Building wheels for collected packages: pypivoter
+  Building wheel for pypivoter (setup.py): started
+  Building wheel for pypivoter (setup.py): finished with status 'error'
+  Running setup.py clean for pypivoter
+Failed to build pypivoter
+Installing collected packages: pypivoter
+  Attempting uninstall: pypivoter
+    Found existing installation: pypivoter 0.0.1
+    Uninstalling pypivoter-0.0.1:
+      Successfully uninstalled pypivoter-0.0.1
+    Running setup.py install for pypivoter: started
+    Running setup.py install for pypivoter: finished with status 'error'
+  Rolling back uninstall of pypivoter
+  Moving to /home/kormos/anaconda3/lib/python3.8/site-packages/pypivoter-0.0.1.dist-info/
+   from /home/kormos/anaconda3/lib/python3.8/site-packages/~ypivoter-0.0.1.dist-info
+  Moving to /home/kormos/anaconda3/lib/python3.8/site-packages/pypivoter/
+   from /home/kormos/anaconda3/lib/python3.8/site-packages/~ypivoter
