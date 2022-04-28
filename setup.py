@@ -25,7 +25,7 @@ def no_cythonize(extensions, **_ignore):
 
 
 extensions = [
-    Extension("pypivoter.pypivoter", ["src/pypivoter/pypivoter.pyx"])
+    Extension("pypivoter", ["src/pypivoter.pyx"])
 ]
 
 CYTHONIZE = bool(int(os.getenv("CYTHONIZE", 0))) and cythonize is not None
