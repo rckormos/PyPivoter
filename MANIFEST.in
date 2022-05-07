@@ -1,2 +1,5 @@
 include requirements.txt
 include LICENSE.txt
+include src/pypivoter/degeneracy_cliques.pyx
+include src/pypivoter/degeneracy_helper.pyx
+include src/pypivoter/degeneracy_helper.pxd

@@ -35,7 +35,7 @@ The two main functions available to the user are countCliques and
 enumerateCliques, which can be imported as follows:
 
 ```
->> from pypivoter import countCliques, enumerateCliques
+>> from pypivoter.degeneracy_cliques import countCliques, enumerateCliques
 ```
 
 Both take two arguments. The first is an m x 2 NumPy array of 
@@ -48,7 +48,7 @@ Example output from countCliques is:
 
 ```
 >> import numpy as np
->> from pypivoter import countCliques
+>> from pypivoter.degeneracy_cliques import countCliques
 >> tetrahedron = np.array([[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]])
 >> countCliques(tetrahedron, 0)
 [1 4 6 4 1]
@@ -57,7 +57,7 @@ Example output from countCliques is:
 Example output from enumerateCliques is:
 ```
 >> import numpy as np
->> from pypivoter import enumerateCliques
+>> from pypivoter.degeneracy_cliques import enumerateCliques
 >> tetrahedron = np.array([[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]])
 >> enumerateCliques(tetrahedron, 0)
 [array([], shape=(0, 0), dtype=int32), array([[0],

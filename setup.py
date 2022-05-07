@@ -24,10 +24,11 @@ def no_cythonize(extensions, **_ignore):
 
 
 extensions = [
-    Extension("pypivoter", ["src/pypivoter.pyx"])
+    Extension("pypivoter.degeneracy_helper", ["src/pypivoter/degeneracy_helper.pyx"]),
+    Extension("pypivoter.degeneracy_cliques", ["src/pypivoter/degeneracy_cliques.pyx"]),
 ]
 
-CYTHONIZE = (cythonize is not None)
+CYTHONIZE = bool(int(os.getenv("CYTHONIZE", 0))) and cythonize is not None
 
 if CYTHONIZE:
     compiler_directives = {"language_level": 3, "embedsignature": True}
