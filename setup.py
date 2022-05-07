@@ -6,7 +6,6 @@ try:
 except ImportError:
     cythonize = None
 
-
 # https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html#distributing-cython-modules
 def no_cythonize(extensions, **_ignore):
     for extension in extensions:
@@ -28,7 +27,7 @@ extensions = [
     Extension("pypivoter", ["src/pypivoter.pyx"])
 ]
 
-CYTHONIZE = bool(int(os.getenv("CYTHONIZE", 0))) and cythonize is not None
+CYTHONIZE = (cythonize is not None)
 
 if CYTHONIZE:
     compiler_directives = {"language_level": 3, "embedsignature": True}

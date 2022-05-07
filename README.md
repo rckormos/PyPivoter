@@ -5,7 +5,7 @@ Purpose
 -------
 
 The purpose of this package is to count and/or list the cliques, or 
-maximally-connected subgraphs, within a graph using the fast Pivoter 
+fully-connected subgraphs, within a graph using the fast Pivoter 
 algorithm developed by Shweta Jain and C. Seshadhri.
 
 Installation
@@ -21,6 +21,13 @@ or
 CYTHONIZE=1 pip install --user .
 ```
 
+### From PyPi
+
+```bash
+pip install --user pypivoter
+```
+
+
 Use
 ---
 
@@ -28,7 +35,7 @@ The two main functions available to the user are countCliques and
 enumerateCliques, which can be imported as follows:
 
 ```
->> from pivoter.pivoter import countCliques, enumerateCliques
+>> from pypivoter import countCliques, enumerateCliques
 ```
 
 Both take two arguments. The first is an m x 2 NumPy array of 
