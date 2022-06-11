@@ -195,7 +195,7 @@ cdef void fillInPandXForRecursiveCall(int vertex, int orderNumber,
 
 cdef void moveToR(int vertex, int* vertexSets, int* vertexLookup,
                   int** neighborsInP, int* numNeighbors, int* pBeginP,
-                  int* pBeginR, int* pNewBeginP, int* pNewBeginR):
+                  int* pBeginR, int* pNewBeginP, int* pNewBeginR, int n):
     """Move a vertex to the set R, and update the sets P and X, and the arrays
        of neighbors in P.
 
@@ -225,6 +225,8 @@ cdef void moveToR(int vertex, int* vertexSets, int* vertexLookup,
     pNewBeginR : int*
        After the function, contains the new index where set R begins in
        vertexSets after adding vertex to R.
+    n : int
+       Total number of vertices.
     """
     cdef int vertexLocation = vertexLookup[vertex]
 
@@ -255,7 +257,6 @@ cdef void moveToR(int vertex, int* vertexSets, int* vertexLookup,
                 vertexLookup[neighbor] = pNewBeginR[0]
                 pNewBeginR[0] += 1 # cython analog of *pnewBeginR += 1
             k += 1
-
         j += 1
 
     j = pNewBeginP[0]
@@ -265,7 +266,7 @@ cdef void moveToR(int vertex, int* vertexSets, int* vertexLookup,
         numPotentialNeighbors = min(sizeOfP, numNeighbors[thisVertex])
         numNeighborsInP = 0
         k = 0
-        while k < numPotentialNeighbors:
+        while k < numPotentialNeighbors: 
             neighbor = neighborsInP[thisVertex][k]
             neighborLocation = vertexLookup[neighbor]
             if neighborLocation >= pNewBeginP[0] and \
@@ -276,7 +277,6 @@ cdef void moveToR(int vertex, int* vertexSets, int* vertexLookup,
                 numNeighborsInP += 1
             k += 1
         j += 1
-
 
 cdef void moveFromRToX(int vertex, int* vertexSets, int* vertexLookup,
                        int* pBeginP, int* pBeginR):
@@ -528,12 +528,13 @@ cdef void listAllCliquesDegeneracyRecursive(int** cliques, int* cliqueCounts,
                 cliqueCounts[k] += nCr_num // nCr_denom
                 # cliqueCounts[k] += <int> nCr[drop][i]
                 i -= 1
+        
         return
 
     cdef int* candidatesToIterateThrough
     cdef int numCandidatesToIterateThrough = 0
 
-    # get the candidates to add to R to make a maxmial clique
+    # get the candidates to add to R to make a maxmial clique 
     cdef int pivot = findBestPivotNonNeighbors(&candidatesToIterateThrough,
                                                &numCandidatesToIterateThrough,
                                                vertexSets, vertexLookup,
@@ -551,7 +552,7 @@ cdef void listAllCliquesDegeneracyRecursive(int** cliques, int* cliqueCounts,
             # to add vertex into the partial clique, represented by R,
             # swap vertex into R and update all data structures
             moveToR(vertex, vertexSets, vertexLookup, neighborsInP,
-                    numNeighbors, &beginP, &beginR, &newBeginP, &newBeginR)
+                    numNeighbors, &beginP, &beginR, &newBeginP, &newBeginR, n)
 
             # recursively compute maximal cliques with new sets R, P, and X
             if vertex == pivot:
@@ -563,7 +564,7 @@ cdef void listAllCliquesDegeneracyRecursive(int** cliques, int* cliqueCounts,
                                                   isHold, isPivot, newBeginP,
                                                   newBeginR, n, max_k, rsize+1,
                                                   drop+1, cliqueNum, enumerate)
-
+                
                 isPivot[vertex] = 0 # reset state of isPivot for higher calls
 
             else:
@@ -581,9 +582,8 @@ cdef void listAllCliquesDegeneracyRecursive(int** cliques, int* cliqueCounts,
             moveFromRToX(vertex, vertexSets, vertexLookup, &beginP, &beginR)
 
             iterator += 1
-
+        
         # swap vertices back from X to P, for higher recursive calls
-        iterator = 0
         while iterator < numCandidatesToIterateThrough:
             vertex = candidatesToIterateThrough[iterator]
             vertexLocation = vertexLookup[vertex]
@@ -633,7 +633,6 @@ cdef void listAllCliquesDegeneracy(int** cliques, int* cliqueCounts,
     cdef int* vertexSets = <int*> calloc(n, sizeof(int))
     # vertex i is stored in vertexSets[vertexLookup[i]]
     cdef int* vertexLookup = <int*> calloc(n, sizeof(int))
-
     cdef int** neighborsInP = <int**> calloc(n * max_k, sizeof(int))
     cdef int* numNeighbors = <int*> calloc(n, sizeof(int))
     cdef int* isHold = <int*> calloc(n, sizeof(int))
@@ -723,8 +722,8 @@ cdef int* countCliques_c(LinkedList** adjListLinked, int n, int* max_k):
     return cliqueCounts
 
 
-cdef int** enumerateCliques_c(LinkedList** adjListLinked, int n, int* max_k,
-                             int* nCliques):
+cdef int** enumerateCliques_c(LinkedList** adjListLinked, 
+                              int n, int* max_k, int* nCliques):
     """Given an adjacency list of a graph as an array of linked lists of
        integers, output the vertices of k-cliques in the graph as an int array.
 
@@ -749,30 +748,16 @@ cdef int** enumerateCliques_c(LinkedList** adjListLinked, int n, int* max_k,
         Integer array [nCliques x max_k] of k-cliques with -1 as a placeholder
         for cliques of length less than max_k.
     """
-    cdef int deg = 0, m = 0 # degeneracy and 2x edge number
-
+    cdef int* cliqueCounts = countCliques_c(adjListLinked, n, max_k)
+    
     cdef NeighborListArray** orderingArray = \
         computeDegeneracyOrderArray(adjListLinked, n)
-
-    cdef int i
-    for i in range(n):
-        if deg < orderingArray[i].laterDegree:
-            deg = orderingArray[i].laterDegree
-        m += orderingArray[i].laterDegree
-
-    if max_k[0] == 0:
-        max_k[0] = deg + 1
-
-    cdef int* cliqueCounts = <int*> calloc(max_k[0] + 1, sizeof(int))
-    listAllCliquesDegeneracy(NULL, cliqueCounts, orderingArray, n, max_k[0], 0)
-    # pass NULL pointer since the cliques argument will never be used
 
     cdef int new_max_k
     for i in range(max_k[0] + 1):
         nCliques[0] += cliqueCounts[i]
         if cliqueCounts[i] > 0:
-            new_max_k = i
-    max_k[0] = new_max_k
+            new_max_k = i 
 
     cdef int** cliques = <int**> calloc(nCliques[0] * max_k[0], sizeof(int))
 
@@ -784,6 +769,8 @@ cdef int** enumerateCliques_c(LinkedList** adjListLinked, int n, int* max_k,
 
     listAllCliquesDegeneracy(cliques, cliqueCounts, orderingArray,
                              n, max_k[0], 1)
+
+    max_k[0] = new_max_k
 
     free(orderingArray)
     free(cliqueCounts)
@@ -863,7 +850,7 @@ cpdef enumerateCliques(adj, int max_k):
         adj_c[1][i] = <int> adj[i][1]
 
     cdef LinkedList** adjacencyList = graphAdjArrayToDoubleEdges(n, m, adj_c)
-    cdef int nCliques
+    cdef int nCliques = 0
     cliques = enumerateCliques_c(adjacencyList, n, &max_k, &nCliques)
 
     # create numpy array from C-style int array for returning the cliques
