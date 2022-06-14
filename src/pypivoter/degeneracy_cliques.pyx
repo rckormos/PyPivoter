@@ -605,7 +605,7 @@ cdef void listAllCliquesDegeneracyRecursive(int** cliques, int* cliqueCounts,
 
 cdef void listAllCliquesDegeneracy(int** cliques, int* cliqueCounts,
                                    NeighborListArray** orderingArray,
-                                   int n, int max_k, int enumerate):
+                                   int n, int deg, int max_k, int enumerate):
     """Populate the cliqueCounts array with clique counts for cliques up to size
        max_k given the degeneracy-ordered graph in orderingArray.
 
@@ -622,9 +622,10 @@ cdef void listAllCliquesDegeneracy(int** cliques, int* cliqueCounts,
         of the graph).
     n : int
         The number of vertices in the graph.
+    deg : int
+        The degeneracy of the graph.
     max_k : int
-        The maximum size of k-cliques to be counted, or 0 if all k-cliques
-        should be counted.
+        The maximum size of k-cliques to be counted.
     enumerate : int
         1 if cliques are to be enumerated, 0 if cliques are to be counted.
     """
@@ -643,7 +644,7 @@ cdef void listAllCliquesDegeneracy(int** cliques, int* cliqueCounts,
     while i < n:
         vertexLookup[i] = i
         vertexSets[i] = i
-        neighborsInP[i] = <int*> calloc(max_k, sizeof(int))
+        neighborsInP[i] = <int*> calloc(deg, sizeof(int))
         numNeighbors[i] = 1
         i += 1
 
@@ -678,7 +679,8 @@ cdef void listAllCliquesDegeneracy(int** cliques, int* cliqueCounts,
     return
 
 
-cdef int* countCliques_c(LinkedList** adjListLinked, int n, int* max_k):
+cdef int* countCliques_c(LinkedList** adjListLinked, int n, int* max_k, 
+                         int* deg):
     """Given an adjacency list of a graph as an array of linked lists of
        integers, output the number of k-cliques in the graph as an int array.
 
@@ -693,28 +695,28 @@ cdef int* countCliques_c(LinkedList** adjListLinked, int n, int* max_k):
         Pointer to int providing the maximum size of k-cliques to be counted,
         or 0 if all k-cliques should be counted.  In the latter case, max_k[0]
         will be updated to reflect the maximum clique size that is found.
+    deg : int*
+        Pointer to int that will store the degeneracy of the graph.
 
     Returns
     -------
     int*
         Integer array of k-clique counts, indexed by k <= degeneracy.
     """
-    cdef int deg = 0, m = 0 # degeneracy and 2x edge number
-
     cdef NeighborListArray** orderingArray = \
         computeDegeneracyOrderArray(adjListLinked, n)
 
     cdef int i
     for i in range(n):
-        if deg < orderingArray[i].laterDegree:
-            deg = orderingArray[i].laterDegree
-        m += orderingArray[i].laterDegree
+        if deg[0] < orderingArray[i].laterDegree:
+            deg[0] = orderingArray[i].laterDegree
 
     if max_k[0] == 0:
-        max_k[0] = deg + 1
+        max_k[0] = deg[0] + 1
 
     cdef int* cliqueCounts = <int*> calloc(max_k[0] + 1, sizeof(int))
-    listAllCliquesDegeneracy(NULL, cliqueCounts, orderingArray, n, max_k[0], 0)
+    listAllCliquesDegeneracy(NULL, cliqueCounts, orderingArray, n, 
+                             deg[0], max_k[0], 0)
     # pass NULL pointer since the cliques argument will never be used
 
     free(orderingArray)
@@ -748,11 +750,12 @@ cdef int** enumerateCliques_c(LinkedList** adjListLinked,
         Integer array [nCliques x max_k] of k-cliques with -1 as a placeholder
         for cliques of length less than max_k.
     """
-    cdef int* cliqueCounts = countCliques_c(adjListLinked, n, max_k)
+    cdef int deg = 0
+    cdef int* cliqueCounts = countCliques_c(adjListLinked, n, max_k, &deg)
     
     cdef NeighborListArray** orderingArray = \
         computeDegeneracyOrderArray(adjListLinked, n)
-
+   
     cdef int new_max_k
     for i in range(max_k[0] + 1):
         nCliques[0] += cliqueCounts[i]
@@ -767,8 +770,8 @@ cdef int** enumerateCliques_c(LinkedList** adjListLinked,
         for j in range(max_k[0]):
             cliques[i][j] = -1
 
-    listAllCliquesDegeneracy(cliques, cliqueCounts, orderingArray,
-                             n, max_k[0], 1)
+    listAllCliquesDegeneracy(cliques, cliqueCounts, orderingArray, n, 
+                             deg, max_k[0], 1)
 
     max_k[0] = new_max_k
 
@@ -809,7 +812,8 @@ cpdef countCliques(adj, int max_k):
         adj_c[1][i] = <int> adj[i][1]
 
     cdef LinkedList** adjacencyList = graphAdjArrayToDoubleEdges(n, m, adj_c)
-    cliqueCounts = countCliques_c(adjacencyList, n, &max_k)
+    cdef int deg = 0
+    cliqueCounts = countCliques_c(adjacencyList, n, &max_k, &deg)
 
     # create numpy array from C-style int array for returning the counts
     cliqueCounts_np = np.zeros(max_k + 1).astype(np.dtype("i"))

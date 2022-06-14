@@ -12,7 +12,7 @@ install:
 	CYTHONIZE=1 pip install .
 
 install-from-source: dist
-	pip install dist/pypivoter-0.0.5.tar.gz
+	pip install dist/pypivoter-0.0.6.tar.gz
 
 clean:
 	$(RM) -r build dist src/*.egg-info
