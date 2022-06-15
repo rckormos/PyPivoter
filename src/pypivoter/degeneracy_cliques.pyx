@@ -163,7 +163,6 @@ cdef void fillInPandXForRecursiveCall(int vertex, int orderNumber,
 
     # reset numNeighbors and neighborsInP for this vertex
     cdef int vertexInP
-    cdef int calloc_size
     j = pBeginP[0]
     while j < pBeginR[0]:
         vertexInP = vertexSets[j]
@@ -435,7 +434,7 @@ cdef void listAllCliquesDegeneracyRecursive(int** cliques, int* cliqueCounts,
                                             int* isPivot, int beginP,
                                             int beginR, int n, int max_k,
                                             int rsize, int drop, int* cliqueNum,
-                                            int enumerate):
+                                            int max_nCliques, int enumerate):
     """Recursively list all maximal cliques containing all vertices in R,
        some vertices in P, and no vertices in X.
 
@@ -482,6 +481,8 @@ cdef void listAllCliquesDegeneracyRecursive(int** cliques, int* cliqueCounts,
     cliqueNum : int*
         A counter to keep track of cliques in the case that enumeration is
         being carried out.
+    max_nCliques : int
+        The maximum number of cliques to be enumerated. 
     enumerate : int
         1 if cliques are to be enumerated, 0 if cliques are to be counted.
     """
@@ -511,24 +512,25 @@ cdef void listAllCliquesDegeneracyRecursive(int** cliques, int* cliqueCounts,
                     # if clique does not exceed max_k, increment nAdded so
                     # that it is not overwritten
                     nAdded += 1
+                    if cliqueNum[0] + nAdded >= max_nCliques:
+                        break
                 else:
                     for j in range(l + m):
                         cliques[cliqueNum[0] + nAdded][j] = -1
             cliqueNum[0] += nAdded
-        else: # count cliques
-            i = drop
-            k = rsize - drop
-            while i >= 0 and k <= max_k:
-                k = rsize - i
-                nCr_num = 1
-                nCr_denom = 1
-                for j in range(i):
-                    nCr_num *= drop - j
-                    nCr_denom *= j + 1
-                cliqueCounts[k] += nCr_num // nCr_denom
-                # cliqueCounts[k] += <int> nCr[drop][i]
-                i -= 1
-        
+        # count cliques
+        i = drop
+        k = rsize - drop
+        while i >= 0 and k <= max_k:
+            k = rsize - i
+            nCr_num = 1
+            nCr_denom = 1
+            for j in range(i):
+                nCr_num *= drop - j
+                nCr_denom *= j + 1
+            cliqueCounts[k] += nCr_num // nCr_denom
+            # cliqueCounts[k] += <int> nCr[drop][i]
+            i -= 1 
         return
 
     cdef int* candidatesToIterateThrough
@@ -563,7 +565,8 @@ cdef void listAllCliquesDegeneracyRecursive(int** cliques, int* cliqueCounts,
                                                   neighborsInP, numNeighbors,
                                                   isHold, isPivot, newBeginP,
                                                   newBeginR, n, max_k, rsize+1,
-                                                  drop+1, cliqueNum, enumerate)
+                                                  drop+1, cliqueNum, 
+                                                  max_nCliques, enumerate)
                 
                 isPivot[vertex] = 0 # reset state of isPivot for higher calls
 
@@ -575,7 +578,8 @@ cdef void listAllCliquesDegeneracyRecursive(int** cliques, int* cliqueCounts,
                                                   neighborsInP, numNeighbors,
                                                   isHold, isPivot, newBeginP,
                                                   newBeginR, n, max_k, rsize+1,
-                                                  drop, cliqueNum, enumerate)
+                                                  drop, cliqueNum, 
+                                                  max_nCliques, enumerate)
 
                 isHold[vertex] = 0 # reset state of isHold for higher calls
 
@@ -605,7 +609,8 @@ cdef void listAllCliquesDegeneracyRecursive(int** cliques, int* cliqueCounts,
 
 cdef void listAllCliquesDegeneracy(int** cliques, int* cliqueCounts,
                                    NeighborListArray** orderingArray,
-                                   int n, int deg, int max_k, int enumerate):
+                                   int n, int deg, int max_k, 
+                                   int max_nCliques, int enumerate):
     """Populate the cliqueCounts array with clique counts for cliques up to size
        max_k given the degeneracy-ordered graph in orderingArray.
 
@@ -626,6 +631,8 @@ cdef void listAllCliquesDegeneracy(int** cliques, int* cliqueCounts,
         The degeneracy of the graph.
     max_k : int
         The maximum size of k-cliques to be counted.
+    max_nCliques : int
+        The maximum number of cliques to be enumerated. 
     enumerate : int
         1 if cliques are to be enumerated, 0 if cliques are to be counted.
     """
@@ -634,22 +641,20 @@ cdef void listAllCliquesDegeneracy(int** cliques, int* cliqueCounts,
     cdef int* vertexSets = <int*> calloc(n, sizeof(int))
     # vertex i is stored in vertexSets[vertexLookup[i]]
     cdef int* vertexLookup = <int*> calloc(n, sizeof(int))
-    cdef int** neighborsInP = <int**> calloc(n * max_k, sizeof(int))
+    cdef int** neighborsInP = <int**> calloc(n * deg, sizeof(int))
     cdef int* numNeighbors = <int*> calloc(n, sizeof(int))
     cdef int* isHold = <int*> calloc(n, sizeof(int))
     cdef int* isPivot = <int*> calloc(n, sizeof(int))
 
     cdef int i = 0
-
-    while i < n:
+    for i in range(n):
         vertexLookup[i] = i
         vertexSets[i] = i
         neighborsInP[i] = <int*> calloc(deg, sizeof(int))
         numNeighbors[i] = 1
-        i += 1
 
     cdef int vertex, beginP, beginR, drop, rsize
-    cdef int* cliqueNum = <int*> malloc(sizeof(int))
+    cdef int* cliqueNum = <int*> calloc(1, sizeof(int))
     cliqueNum[0] = 0
     cdef int j
     # for each vertex
@@ -670,17 +675,27 @@ cdef void listAllCliquesDegeneracy(int** cliques, int* cliqueCounts,
                                           vertexSets, vertexLookup,
                                           neighborsInP, numNeighbors, isHold,
                                           isPivot, beginP, beginR, n, max_k,
-                                          rsize, drop, cliqueNum, enumerate)
+                                          rsize, drop, cliqueNum, max_nCliques, 
+                                          enumerate)
 
         isHold[vertex] = 0 # reset the state of isHold for future iterations
 
     cliqueCounts[0] = 1 # account for empty set as a clique
 
+    for i in range(n):
+        free(neighborsInP[i])
+    free(vertexSets)
+    free(vertexLookup)
+    free(neighborsInP)
+    free(numNeighbors)
+    free(isHold)
+    free(isPivot)
+    free(cliqueNum)
+    
     return
 
 
-cdef int* countCliques_c(LinkedList** adjListLinked, int n, int* max_k, 
-                         int* deg):
+cdef int* countCliques_c(LinkedList** adjListLinked, int n, int* max_k):
     """Given an adjacency list of a graph as an array of linked lists of
        integers, output the number of k-cliques in the graph as an int array.
 
@@ -695,8 +710,6 @@ cdef int* countCliques_c(LinkedList** adjListLinked, int n, int* max_k,
         Pointer to int providing the maximum size of k-cliques to be counted,
         or 0 if all k-cliques should be counted.  In the latter case, max_k[0]
         will be updated to reflect the maximum clique size that is found.
-    deg : int*
-        Pointer to int that will store the degeneracy of the graph.
 
     Returns
     -------
@@ -706,17 +719,18 @@ cdef int* countCliques_c(LinkedList** adjListLinked, int n, int* max_k,
     cdef NeighborListArray** orderingArray = \
         computeDegeneracyOrderArray(adjListLinked, n)
 
+    cdef int deg = 0
     cdef int i
     for i in range(n):
-        if deg[0] < orderingArray[i].laterDegree:
-            deg[0] = orderingArray[i].laterDegree
+        if deg < orderingArray[i].laterDegree:
+            deg = orderingArray[i].laterDegree
 
     if max_k[0] == 0:
-        max_k[0] = deg[0] + 1
+        max_k[0] = deg + 1
 
     cdef int* cliqueCounts = <int*> calloc(max_k[0] + 1, sizeof(int))
     listAllCliquesDegeneracy(NULL, cliqueCounts, orderingArray, n, 
-                             deg[0], max_k[0], 0)
+                             deg, max_k[0], 0, 0)
     # pass NULL pointer since the cliques argument will never be used
 
     free(orderingArray)
@@ -724,8 +738,8 @@ cdef int* countCliques_c(LinkedList** adjListLinked, int n, int* max_k,
     return cliqueCounts
 
 
-cdef int** enumerateCliques_c(LinkedList** adjListLinked, 
-                              int n, int* max_k, int* nCliques):
+cdef int** enumerateCliques_c(LinkedList** adjListLinked, int n,  
+                              int max_nCliques, int* max_k, int* nCliques):
     """Given an adjacency list of a graph as an array of linked lists of
        integers, output the vertices of k-cliques in the graph as an int array.
 
@@ -736,6 +750,8 @@ cdef int** enumerateCliques_c(LinkedList** adjListLinked,
         of the graph).
     n : int
         The number of vertices in the graph.
+    max_nCliques : int
+        The maximum number of cliques to enumerate.
     max_k : int*
         Pointer to int providing the maximum size of k-cliques to be counted,
         or 0 if all k-cliques should be counted.  In the latter case, max_k[0]
@@ -750,38 +766,44 @@ cdef int** enumerateCliques_c(LinkedList** adjListLinked,
         Integer array [nCliques x max_k] of k-cliques with -1 as a placeholder
         for cliques of length less than max_k.
     """
-    cdef int deg = 0
-    cdef int* cliqueCounts = countCliques_c(adjListLinked, n, max_k, &deg)
-    
     cdef NeighborListArray** orderingArray = \
         computeDegeneracyOrderArray(adjListLinked, n)
    
-    cdef int new_max_k
-    for i in range(max_k[0] + 1):
-        nCliques[0] += cliqueCounts[i]
-        if cliqueCounts[i] > 0:
-            new_max_k = i 
+    cdef int deg = 0
+    cdef int i
+    for i in range(n):
+        if deg < orderingArray[i].laterDegree:
+            deg = orderingArray[i].laterDegree
 
-    cdef int** cliques = <int**> calloc(nCliques[0] * max_k[0], sizeof(int))
+    if max_k[0] == 0:
+        max_k[0] = deg + 1
+    
+    cdef int** cliques = <int**> calloc(max_nCliques * max_k[0], sizeof(int))
 
     cdef int j
-    for i in range(nCliques[0]):
+    for i in range(max_nCliques):
         cliques[i] = <int*> calloc(max_k[0], sizeof(int))
         for j in range(max_k[0]):
             cliques[i][j] = -1
 
+    cdef int* cliqueCounts = <int*> calloc(max_k[0] + 1, sizeof(int))
     listAllCliquesDegeneracy(cliques, cliqueCounts, orderingArray, n, 
-                             deg, max_k[0], 1)
-
+                             deg, max_k[0], max_nCliques, 1)
+    
+    cdef int new_max_k
+    for i in range(max_k[0] + 1):
+        nCliques[0] += cliqueCounts[i]
+        if cliqueCounts[i] > 0:
+            new_max_k = i
     max_k[0] = new_max_k
 
-    free(orderingArray)
     free(cliqueCounts)
-
+    free(orderingArray)
+    
     return cliques
 
 
-cpdef countCliques(adj, int max_k):
+cpdef countCliques(adj, int max_k=0):
     """Given an adjacency list of a graph as an n x 2 NumPy array of adjacent
        vertex pairs, output the number of k-cliques as a NumPy array.
 
@@ -812,8 +834,7 @@ cpdef countCliques(adj, int max_k):
         adj_c[1][i] = <int> adj[i][1]
 
     cdef LinkedList** adjacencyList = graphAdjArrayToDoubleEdges(n, m, adj_c)
-    cdef int deg = 0
-    cliqueCounts = countCliques_c(adjacencyList, n, &max_k, &deg)
+    cliqueCounts = countCliques_c(adjacencyList, n, &max_k)
 
     # create numpy array from C-style int array for returning the counts
     cliqueCounts_np = np.zeros(max_k + 1).astype(np.dtype("i"))
@@ -822,7 +843,7 @@ cpdef countCliques(adj, int max_k):
     return np.trim_zeros(cliqueCounts_np)
 
 
-cpdef enumerateCliques(adj, int max_k):
+cpdef enumerateCliques(adj, int max_k=0, int max_nCliques=100000):
     """Given an adjacency list of a graph as an n x 2 NumPy array of adjacent
        vertex pairs, output the number of k-cliques as a NumPy array.
 
@@ -834,6 +855,8 @@ cpdef enumerateCliques(adj, int max_k):
     max_k : int
         The maximum size of k-cliques to be counted, or 0 if all k-cliques
         should be counted.
+    max_nCliques : int
+        The maximum number of cliques to enumerate.
 
     Returns
     -------
@@ -855,7 +878,12 @@ cpdef enumerateCliques(adj, int max_k):
 
     cdef LinkedList** adjacencyList = graphAdjArrayToDoubleEdges(n, m, adj_c)
     cdef int nCliques = 0
-    cliques = enumerateCliques_c(adjacencyList, n, &max_k, &nCliques)
+    cliques = enumerateCliques_c(adjacencyList, n, max_nCliques, 
+                                 &max_k, &nCliques)
+    print("returned cliques")
+    if nCliques > max_nCliques:
+        print(("Warning: nCliques = {} > max_nCliques; "
+               "must set max_nCliques to be larger.").format(str(nCliques)))
 
     # create numpy array from C-style int array for returning the cliques
     cliques_np = np.zeros((nCliques, max_k)).astype(np.dtype("i"))
@@ -863,8 +891,9 @@ cpdef enumerateCliques(adj, int max_k):
     for i in range(nCliques):
         for j in range(max_k):
             cliques_np[i][j] = cliques[i][j]
-    k_cliques = [cliques_np[np.logical_and(cliques_np[:, k] == -1,
+    k_cliques = [np.empty(1)] + \
+                [cliques_np[np.logical_and(cliques_np[:, k] == -1,
                                            cliques_np[:, k-1] != -1)][:, :k]
-                 for k in range(max_k)] + \
+                 for k in range(1, max_k)] + \
                 [cliques_np[cliques_np[:, max_k-1] != -1]]
     return k_cliques
