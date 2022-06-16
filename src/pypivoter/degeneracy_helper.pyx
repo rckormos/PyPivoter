@@ -698,10 +698,13 @@ cdef NeighborListArray** computeDegeneracyOrderArray(LinkedList** list, int size
             j += 1
 
     for i in range(size):
+        destroyLinkedList(ordering[i].earlier)
+        destroyLinkedList(ordering[i].later)
         free(ordering[i])
         destroyLinkedList(verticesByDegree[i])
 
     free(vertexLocator)
+    free(ordering)
     free(verticesByDegree)
     free(degree)
 
